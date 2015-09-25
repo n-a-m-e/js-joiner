@@ -1,0 +1,22 @@
+# See https://atom.io/docs/latest/creating-a-package#menus for more details
+'context-menu':
+  'atom-text-editor': [
+    {
+      'label': 'Toggle js-joiner'
+      'command': 'js-joiner:toggle'
+    }
+  ]
+'menu': [
+  {
+    'label': 'Packages'
+    'submenu': [
+      'label': 'js-joiner'
+      'submenu': [
+        {
+          'label': 'Toggle'
+          'command': 'js-joiner:toggle'
+        }
+      ]
+    ]
+  }
+]
