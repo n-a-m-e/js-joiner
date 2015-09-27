@@ -1,9 +1,9 @@
 {
   "name": "js-joiner",
   "main": "./lib/js-joiner",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "JS joiner joins all files in a given directory as long as the open one has a comment on top stating that is necessary",
-  "repository": "https://github.com/atom/js-joiner",
+  "repository": "https://github.com/cfv1984/js-joiner",
   "license": "MIT",
   "engines": {
     "atom": ">=0.174.0 <2.0.0"
