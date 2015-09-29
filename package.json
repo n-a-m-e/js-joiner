@@ -1,7 +1,7 @@
 {
   "name": "js-joiner",
   "main": "./lib/js-joiner.js",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A short description of your package",
   "repository": "https://github.com/atom/js-joiner",
   "license": "MIT",
