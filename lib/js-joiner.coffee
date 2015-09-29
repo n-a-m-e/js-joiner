@@ -29,6 +29,7 @@ UglifyJS = require 'uglify-js'
 
 info = (msg) ->
   atom.notifications.addInfo(msg)
+
 err  = (msg) ->
   atom.notifications.addError(msg, dismissable: true)
 
@@ -101,12 +102,16 @@ class JSJoiner
 
 module.exports = Plugin =
   activate: (state) ->
-    watcher = null
-    tryToBind = () ->
-      ed = atom.workspace.getActiveTextEditor()
-      if ed?
-        clearInterval(watcher)
-        joiner = new JSJoiner(ed)
+    info "Activated"
+    bindToEditor = () ->
+      info("Walking through editors")
+      atom.workspace.getTextEditors().forEach( (ed) ->
+        info("Found an editor for" + ed.getPath())
+        if(!ed.$$joiner)
+          info("No joiner found")
+        joiner = new JSJoiner(editor)
         ed.onDidSave( () -> joiner.maybeJoin() )
+        ed.$$joiner == joiner
+      )
 
-    watcher = setInterval(tryToBind, 100)
+    atom.workspace.onDidOpen( bindToEditors )
