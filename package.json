@@ -3,10 +3,25 @@
   "main": "./lib/js-joiner",
   "version": "0.2.0",
   "description": "JS joiner joins all files in a given directory as long as the open one has a comment on top stating that is necessary",
-  "repository": "https://github.com/cfv1984/js-joiner",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cfv1984/js-joiner.git"
+  },
   "license": "MIT",
   "engines": {
     "atom": ">=0.174.0 <2.0.0"
   },
-  "dependencies": {}
+  "dependencies": {
+    "uglify-js": "^2.4.24"
+  },
+  "readmeFilename": "README.md",
+  "bugs": {
+    "url": "https://github.com/cfv1984/js-joiner/issues"
+  },
+  "homepage": "https://github.com/cfv1984/js-joiner#readme",
+  "keywords": [
+    "javascript",
+    "join",
+    "compress"
+  ]
 }

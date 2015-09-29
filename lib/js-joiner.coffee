@@ -1,109 +1,112 @@
-fs   = require 'fs'
-path = require 'path'
+###
+Copyright (c) 2014 Carlos Vergara
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+###
+
+fs         = require 'fs'
+path       = require 'path'
+Helper     = require './helper'
+ed         = null
+UglifyJS = require 'uglify-js'
 
 info = (msg) ->
-  console.log msg
+  atom.notifications.addInfo(msg)
+err  = (msg) ->
+  atom.notifications.addError(msg, dismissable: true)
 
-# A collection of functions to simplify the actual plugin code
-Helper =
+class JSJoiner
+  ed: null
+  parts: {}
+  constructor: (editor) ->
+    if editor?
+      ed = editor
+    else info "No editor attached."
 
-  #Finds out if a given line is a js-joiner comment
-  isJoinerComment: (line) ->
-    re = /^\/\/js\-joiner/
-    re.test(line)
+  maybeJoin: () ->
+    if ed?
+      lines = ed.getBuffer().getLines()
+      first_line = lines.shift()
+      if @isJS(ed.getPath()) && @hasJoinerComment(first_line)
+        @parts = @parseJoinerComment first_line
+        info "You haven't specified a file to output" unless @parts.out?
+        info "You haven't specified any files to join" unless @parts.files?
 
-  # Tests is a file is of the JS type or not
+        root = Helper.directoryName(ed.getPath())
+        out  = @parts.out
+        out  = Helper.absolutePath(root, out)
+
+        @generate(out)
+    else
+      info "Didn't attach to editor?"
+
+  hasJoinerComment: (line) ->
+    Helper.hasJoinerComment(line)
+
   isJS: (file) ->
-    re = /\.js$/
-    re.test(file)
+    Helper.isJavascriptFile(file)
 
-  # Pass a file, get a directory from it.
-  dirFromPath: (file) ->
-    return file.replace(/\\/g, '/').replace(/\/[^\/]*\/?$/, '');
-
-  # Finds out if a given resource is a directory
-  isDir: (resource) ->
-    return fs.statSync(resource).isDirectory()
-
-  # Gets all the JS in a given directory
-  getJSInDir: (dir, files) ->
-    files = files || []
-    dir_files = fs.readdirSync(dir)
-    info("Got all files from " + dir)
-    for file in dir_files
-      actual_file = path.join(dir, file)
-      if(@isDir(actual_file))
-        info("Had to recurse")
-        @getJSInDir(actual_file, files)
-      else
-        if(@isJS(actual_file))
-          info "Added file " + actual_file
-          files.push actual_file
-    return files
-
-  #Parses a js-joiner comment and gets a hash from it
   parseJoinerComment: (line) ->
-    trim   = (str) -> str.replace(/^\s+|\s+$/g, "")
-    outer  = {}
-    params = trim(line.substr(line.indexOf('js-joiner') + "js-joiner".length))
-      .split(',')
-      .map((command) -> command.split(':'))
-      .map((block) -> block.map(trim))
-      .reduce((was, cur, pos, ar) ->
-        if(was[0])
-          outer[was[0]] = was[1]
-        if(cur[0])
-          outer[cur[0]] = cur[1]
-        return outer;
-      , [])
+    Helper.parseJoinerComment(line)
 
-  getAllFilesInPath: (path) ->
-    info("Reading everything in " + path)
-    @getJSInDir(path)
+  collectFileContents: (file) ->
+    root = Helper.directoryName(ed.getPath())
+    contents = Helper.getFileContents(root, file)
 
-  joinFiles: (paths, opt) ->
-    contents = []
-    open_file_dir = Helper.dirFromPath(atom.workspace.getActiveTextEditor().getPath())
-    info("Open file dir is" + open_file_dir);
-    except = path.resolve(path.join(open_file_dir, opt.except || '.'))
+  getUglified: (files) ->
+    minified = "/* There may have been an error in one of your files. Uglify balked. */"
     try
-      paths.forEach (file) ->
-        if file != except
-          contents.push(fs.readFileSync(file).toString())
+      files = files.map (file) -> path.join(Helper.directoryName(ed.getPath()), file)
     catch e
-      console.log("EHHH", e)
-    return contents.join("\n");
+      err "could not find all the files"
 
-  writeToPath: (name, contents) ->
-    info("Writing to path", path.resolve(name), "contents", contents)
-    open_file_dir = Helper.dirFromPath(atom.workspace.getActiveTextEditor().getPath())
-    name = path.join(open_file_dir, name)
-    fs.writeFileSync(name, contents)
+    try
+      minified = UglifyJS.minify(files).code
+    catch e
+      err "Uglify balked at your files. One of them might have an error?"
 
+    return minified
+
+  generate: (file_name) ->
+    files  = if @parts.files? then @parts.files.split(' ') else []
+
+    info file_name
+    if(@parts.compress)
+      joined = @getUglified files
+    else
+      joined = files
+        .map( @collectFileContents.bind(this) )
+        .join('')
+
+    Helper.saveFile(file_name, joined)
+
+    info "Outputting to: " + file_name
 
 module.exports = Plugin =
   activate: (state) ->
-    if editor = atom.workspace.getActiveTextEditor()
-      editor.onDidSave @tryToJoin
+    watcher = null
+    tryToBind = () ->
+      ed = atom.workspace.getActiveTextEditor()
+      if ed?
+        clearInterval(watcher)
+        joiner = new JSJoiner(ed)
+        ed.onDidSave( () -> joiner.maybeJoin() )
 
-  deactivate: ->
-    @subscriptions.dispose()
-
-  tryToJoin: ->
-    if editor     = atom.workspace.getActiveTextEditor()
-      first_line  = editor.getBuffer().getLines().shift()
-      editor_path        = editor.getPath()
-      info("Currently on" + editor_path);
-      if(Helper.isJS(editor_path) && Helper.isJoinerComment(first_line))
-        command   = Helper.parseJoinerComment(first_line)
-        if(command.out?)
-          info("Outfile:" + command.out)
-          paths  = Helper.getAllFilesInPath(Helper.dirFromPath(editor_path))
-          info("View console for paths")
-          console.log(paths);
-          joined = Helper.joinFiles(paths, except: command.out)
-          info("View console for joined files")
-          Helper.writeToPath(command.out, joined)
-          info("Wrote to file " + command.out)
-        else console.log("Not.")
-    else throw new Error("No editor?")
+    watcher = setInterval(tryToBind, 100)
