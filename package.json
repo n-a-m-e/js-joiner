@@ -1,9 +1,9 @@
 {
   "name": "js-joiner",
   "main": "./lib/js-joiner.js",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Join and maybe compress javascript files from a comment",
-  "keywords":[
+  "keywords": [
     "javascript",
     "postprocessing",
     "uglify"
