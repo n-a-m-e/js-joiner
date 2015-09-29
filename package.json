@@ -2,7 +2,12 @@
   "name": "js-joiner",
   "main": "./lib/js-joiner.js",
   "version": "0.7.2",
-  "description": "A short description of your package",
+  "description": "Join and maybe compress javascript files from a comment",
+  "keywords":[
+    "javascript",
+    "postprocessing",
+    "uglify"
+  ],
   "repository": "https://github.com/atom/js-joiner",
   "license": "MIT",
   "engines": {
